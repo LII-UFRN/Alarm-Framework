@@ -5,7 +5,7 @@ class AlarmSetting:
     on_delay = None
     off_delay = None
 
-    def __init__(self, limit, alm_type, proc_var, on_delay, off_delay):
+    def __init__(self, limit, alm_type, proc_var, on_delay=None, off_delay=None):
         self.limit = limit
         self.alm_type = alm_type
         self.proc_var = proc_var
