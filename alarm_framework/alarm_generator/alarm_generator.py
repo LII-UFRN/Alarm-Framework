@@ -1,10 +1,10 @@
-from .alarm_setting import AlarmSetting
 import numpy as np
 import pandas as pd
 
+
 def alarm_generate(df, alm_set):
-    '''alarm_generate is a function when return a vector '''
-    
+    """alarm_generate is a function when return a vector """
+
     t_delay = 0
     t_dead = 0
     log_alarm = np.zeros(len(df))
@@ -55,6 +55,7 @@ def alarm_generate(df, alm_set):
 
     return pd.Series(log_alarm, index=df.index)
 
+
 def alarm_seq(df, alm_settings):
     seq = pd.DataFrame(index=df.index)
     for alm_set in alm_settings:
@@ -73,8 +74,8 @@ def alarm_log(df):
         # r = Linha
         for i, v in r.iteritems():
             # i = Coluna
-            proc_var, alm_type = i.split('_')
             # v = Valor
+            proc_var, alm_type = i.split('_')
             if ~np.isnan(v):
                 index.append(t)
                 log.append([proc_var, proc_var, alm_type, alm_type, 'ALM' if v > 0 else 'RTN'])
