@@ -17,11 +17,11 @@ def var_limits(lower_kde, upper_kde, r_lower, r_upper, r_aad, mean, high=True):
     upper = newton(lambda x: upper_kde.integrate_box_1d(-inf, x) - r_upper, x0=mean)
 
     if high:
-        aad_limit = newton(lambda x: (sample_period * (upper_kde.integrate_box_1d(-inf, x)/ (1 - upper_kde.integrate_box_1d(-inf, x)))) - r_aad, x0=mean)
+        aad_limit = newton(lambda x: (sample_period * (upper_kde.integrate_box_1d(-inf, x) / upper_kde.integrate_box_1d(x, inf))) - r_aad, x0=mean)
         upper = aad_limit if upper > aad_limit else upper
 
     else:
-        aad_limit = newton(lambda x: (sample_period * (lower_kde.integrate_box_1d(x, inf)/ (1 - lower_kde.integrate_box_1d(x, inf)))) - r_aad, x0=mean)
+        aad_limit = newton(lambda x: (sample_period * (lower_kde.integrate_box_1d(x, inf) / lower_kde.integrate_box_1d(-inf, x))) - r_aad, x0=mean)
         lower = aad_limit if lower < aad_limit else lower
 
     return lower, upper
@@ -35,9 +35,11 @@ def fap_map_threshold(proc_df, normal_mean, var_list=None, r_far=0.05, r_mar=0.0
     elif len(var_list) != len(normal_mean):
         raise ValueError('Var list length expected to be equal to normal mean length')
 
+    select_proc_df = proc_df[var_list]
+
     alarm_settings = list()
-    for i, col in enumerate(proc_df.columns):
-        signal = proc_df[col]
+    for i, col in enumerate(select_proc_df.columns):
+        signal = select_proc_df[col]
         t = change_mean_points(signal)
         t.sort()
 
@@ -46,14 +48,14 @@ def fap_map_threshold(proc_df, normal_mean, var_list=None, r_far=0.05, r_mar=0.0
 
         if low_kde is not None:
             lower, upper = var_limits(low_kde, norm_kde, r_mar, r_far, r_aad, normal_mean[i])
-            threshold = opt_threshold(low_kde, norm_kde, r_mar, r_far, r_aad, lower, upper)
+            threshold = opt_threshold(low_kde, norm_kde, r_mar, r_far, r_aad, lower, upper, high=False)
             alm = AlarmSetting(threshold, "LOW", col)
             alarm_settings.append(alm)
 
         if high_kde is not None:
             lower, upper = var_limits(norm_kde, high_kde, r_far, r_mar, r_aad, normal_mean[i])
-            threshold = opt_threshold(norm_kde, high_kde, r_far, r_mar, r_aad, lower, upper)
-            alm = AlarmSetting(threshold[i], "HIGH", col)
+            threshold = opt_threshold(norm_kde, high_kde, r_far, r_mar, r_aad, lower, upper, high=True)
+            alm = AlarmSetting(threshold, "HIGH", col)
             alarm_settings.append(alm)
     return alarm_settings
 
@@ -94,20 +96,19 @@ def mean_groups(signal, t, mean):
     norm_seq = pd.Series()
     high_seq = pd.Series()
 
-    t_zero = 0
+    t_zero = signal.index[0]
     for t_one in t:
         x = signal[t_zero:t_one]
-
         t_statistic, p_value = stats.ttest_1samp(x, mean)
         t_beta_low = stats.t.ppf(beta, len(x))
         t_beta_high = stats.t.ppf(1 - beta, len(x))
 
         if t_statistic < t_beta_low:
-            low_seq.append(x)
+            low_seq = low_seq.append(x)
         elif t_statistic > t_beta_high:
-            high_seq.append(x)
+            high_seq = high_seq.append(x)
         else:
-            norm_seq.append(x)
+            norm_seq = norm_seq.append(x)
         t_zero = t_one
 
     x = signal[t_zero:]
@@ -117,11 +118,11 @@ def mean_groups(signal, t, mean):
     t_beta_high = stats.t.ppf(1 - beta, len(x))
 
     if t_statistic < t_beta_low:
-        low_seq.append(x)
+        low_seq = low_seq.append(x)
     elif t_statistic > t_beta_high:
-        high_seq.append(x)
+        high_seq = high_seq.append(x)
     else:
-        norm_seq.append(x)
+        norm_seq = norm_seq.append(x)
 
     return low_seq, norm_seq, high_seq
 
@@ -134,11 +135,11 @@ def density_estimation(low_seq, norm_seq, high_seq):
     return low_kde, norm_kde, high_kde
 
 
-def opt_threshold(lower_kde, upper_kde, r_lower, r_upper, r_aad, lower, upper, w=(1, 1, 1)):
+def opt_threshold(lower_kde, upper_kde, r_lower, r_upper, r_aad, lower, upper, w=(1, 1, 1), high=True):
     x_zero = np.random.uniform(lower, upper)
-    args = (w, lower_kde, upper_kde, r_lower, r_upper, r_aad)
+    args = (w, lower_kde, upper_kde, r_lower, r_upper, r_aad, high)
     threshold = minimize(fun=loss_function, x0=x_zero, args=args)
-    return threshold
+    return threshold.x
 
 
 def loss_function(x, *args):
