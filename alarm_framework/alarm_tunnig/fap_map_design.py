@@ -12,21 +12,6 @@ beta = 0.01
 sample_period = 1
 
 
-def var_limits(lower_kde, upper_kde, r_lower, r_upper, r_aad, mean, high=True):
-    lower = newton(lambda x: lower_kde.integrate_box_1d(x, inf) - r_lower, x0=mean)
-    upper = newton(lambda x: upper_kde.integrate_box_1d(-inf, x) - r_upper, x0=mean)
-
-    if high:
-        aad_limit = newton(lambda x: (sample_period * (upper_kde.integrate_box_1d(-inf, x) / upper_kde.integrate_box_1d(x, inf))) - r_aad, x0=mean)
-        upper = aad_limit if upper > aad_limit else upper
-
-    else:
-        aad_limit = newton(lambda x: (sample_period * (lower_kde.integrate_box_1d(x, inf) / lower_kde.integrate_box_1d(-inf, x))) - r_aad, x0=mean)
-        lower = aad_limit if lower < aad_limit else lower
-
-    return lower, upper
-
-
 def fap_map_threshold(proc_df, normal_mean, var_list=None, r_far=0.05, r_mar=0.05, r_aad=10):
     if var_list is None:
         var_list = proc_df.columns
@@ -47,13 +32,13 @@ def fap_map_threshold(proc_df, normal_mean, var_list=None, r_far=0.05, r_mar=0.0
         low_kde, norm_kde, high_kde = density_estimation(low_seq, norm_seq, high_seq)
 
         if low_kde is not None:
-            lower, upper = var_limits(low_kde, norm_kde, r_mar, r_far, r_aad, normal_mean[i])
+            lower, upper = var_limits(low_kde, norm_kde, r_mar, r_far, r_aad, normal_mean[i], high=False)
             threshold = opt_threshold(low_kde, norm_kde, r_mar, r_far, r_aad, lower, upper, high=False)
             alm = AlarmSetting(threshold, "LOW", col)
             alarm_settings.append(alm)
 
         if high_kde is not None:
-            lower, upper = var_limits(norm_kde, high_kde, r_far, r_mar, r_aad, normal_mean[i])
+            lower, upper = var_limits(norm_kde, high_kde, r_far, r_mar, r_aad, normal_mean[i], high=True)
             threshold = opt_threshold(norm_kde, high_kde, r_far, r_mar, r_aad, lower, upper, high=True)
             alm = AlarmSetting(threshold, "HIGH", col)
             alarm_settings.append(alm)
@@ -127,7 +112,6 @@ def mean_groups(signal, t, mean):
     return low_seq, norm_seq, high_seq
 
 
-# Return refactor
 def density_estimation(low_seq, norm_seq, high_seq):
     low_kde = stats.gaussian_kde(low_seq) if not low_seq.empty else None
     norm_kde = stats.gaussian_kde(norm_seq) if not norm_seq.empty else None
@@ -135,11 +119,29 @@ def density_estimation(low_seq, norm_seq, high_seq):
     return low_kde, norm_kde, high_kde
 
 
+def var_limits(lower_kde, upper_kde, r_lower, r_upper, r_aad, mean, high=True):
+    lower = newton(lambda x: lower_kde.integrate_box_1d(x, inf) - r_lower, x0=mean)
+    upper = newton(lambda x: upper_kde.integrate_box_1d(-inf, x) - r_upper, x0=mean)
+
+    if high:
+        aad_limit = newton(lambda x: (sample_period * (upper_kde.integrate_box_1d(-inf, x) / upper_kde.integrate_box_1d(x, inf))) - r_aad, x0=mean)
+        upper = aad_limit if upper > aad_limit else upper
+    else:
+        aad_limit = newton(lambda x: (sample_period * (lower_kde.integrate_box_1d(x, inf) / lower_kde.integrate_box_1d(-inf, x))) - r_aad, x0=mean)
+        lower = aad_limit if lower < aad_limit else lower
+
+    if upper < lower:
+        raise ValueError("Empty space search: %f < x < %f" % (lower, upper))
+
+    return lower, upper
+# Return refactor
+
+
 def opt_threshold(lower_kde, upper_kde, r_lower, r_upper, r_aad, lower, upper, w=(1, 1, 1), high=True):
     x_zero = np.random.uniform(lower, upper)
     args = (w, lower_kde, upper_kde, r_lower, r_upper, r_aad, high)
-    threshold = minimize(fun=loss_function, x0=x_zero, args=args)
-    return threshold.x
+    threshold = minimize(fun=loss_function, x0=x_zero, args=args, bounds=[(lower, upper)])
+    return threshold.x[0]
 
 
 def loss_function(x, *args):
