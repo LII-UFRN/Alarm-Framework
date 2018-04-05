@@ -12,6 +12,8 @@ def correlation_threshold(proc_df, var_list=None, normal_mean=None):
         var_list = proc_df.columns
     if len(var_list) < 2:
         raise ValueError('Variable list must be greater than 1')
+    elif len(var_list) != len(normal_mean):
+        raise ValueError('Var list length expected to be equal to normal mean length')
 
     select_proc_df = proc_df[var_list]
 
@@ -23,9 +25,10 @@ def correlation_threshold(proc_df, var_list=None, normal_mean=None):
     for x in joint_kde_df.index:
         for y in joint_kde_df.columns:
             if x is not y:
-                joint_kde_df[x][y] = stats.gaussian_kde(select_proc_df[[x, y]].T)
+                joint_kde_df.loc[x, y] = stats.gaussian_kde(select_proc_df[[x, y]].T)
 
-    opt = minimize(fun=corr_fit, x0=select_proc_df.mean(), args=(joint_kde_df, kde_df, proc_corr))
+    var_bounds = [x for x in zip(select_proc_df.min(), select_proc_df.max())]
+    opt = minimize(fun=corr_fit, x0=select_proc_df.mean(), args=(joint_kde_df, kde_df, proc_corr), bounds=var_bounds)
     threshold = opt.x
 
     alarm_settings = list()
@@ -36,16 +39,22 @@ def correlation_threshold(proc_df, var_list=None, normal_mean=None):
 
 
 def alarm_corr(x, joint_kde, kde_df):
-    corr_mat = np.matrix(np.zeros((len(x), len(x))))
+    corr_mat = np.matrix(np.ones((len(x), len(x))))
     for i, x_tp in enumerate(x):
-        for j, y_tp in enumerate(x[i:]):
+        for j, y_tp in enumerate(x):
             if i is not j:
                 x_kde = kde_df.iloc[i]
                 y_kde = kde_df.iloc[j]
                 p_xy = joint_kde.iloc[i, j].integrate_box([x_tp, y_tp], [inf, inf])
                 p_x = x_kde.integrate_box_1d(x_tp, inf)
                 p_y = y_kde.integrate_box_1d(y_tp, inf)
-                corr_mat[i, j] = (p_xy - p_x * p_y) / (np.sqrt(p_x - p_x ** 2) * np.sqrt(p_y - p_y ** 2))
+                numerator = (p_xy - p_x * p_y)
+                denominator = (np.sqrt(p_x - (p_x ** 2)) * np.sqrt(p_y - (p_y ** 2)))
+                # if isnan(numerator) or isnan(denominator):
+                #     print(x)
+                #     break
+
+                corr_mat[i, j] = numerator / denominator
 
     return corr_mat
 

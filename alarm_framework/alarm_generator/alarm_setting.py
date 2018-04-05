@@ -12,6 +12,11 @@ class AlarmSetting:
         self.on_delay = on_delay
         self.off_delay = off_delay
 
-    def __repr__(self):
-        return "Limit: %f\nType: %s\nProcess Variable: %s\n\n" \
-               % (self.limit, self.alm_type, self.proc_var)
+    def as_dict(self):
+        return {
+            'limit': self.limit,
+            'alm_type': self.alm_type,
+            'proc_var': self.proc_var,
+            'on_delay': self.on_delay,
+            'off_delay': self.off_delay
+        }

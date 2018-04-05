@@ -76,7 +76,7 @@ def statistic_u(signal):
     return np.cumsum(signal.apply(lambda s: np.sum(np.sign(s - signal))))
 
 
-def mean_groups(signal, t, mean):
+def mean_groups(signal, t, n_signal):
     low_seq = pd.Series()
     norm_seq = pd.Series()
     high_seq = pd.Series()
@@ -84,14 +84,15 @@ def mean_groups(signal, t, mean):
     t_zero = signal.index[0]
     for t_one in t:
         x = signal[t_zero:t_one]
-        t_statistic, p_value = stats.ttest_1samp(x, mean)
+        t_statistic, p_value = stats.ttest_ind(x, signal)
         t_beta_low = stats.t.ppf(beta, len(x))
         t_beta_high = stats.t.ppf(1 - beta, len(x))
 
-        if t_statistic < t_beta_low:
-            low_seq = low_seq.append(x)
-        elif t_statistic > t_beta_high:
-            high_seq = high_seq.append(x)
+        if p_value < beta:
+            if t_statistic < 0:
+                low_seq = low_seq.append(x)
+            elif t_statistic > 0:
+                high_seq = high_seq.append(x)
         else:
             norm_seq = norm_seq.append(x)
         t_zero = t_one
