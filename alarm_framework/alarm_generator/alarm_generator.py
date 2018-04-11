@@ -2,58 +2,46 @@ import numpy as np
 import pandas as pd
 
 
-def alarm_generate(df, alm_set):
+def alarm_generate(series, alm_set):
     """alarm_generate is a function when return a vector """
 
-    t_delay = 0
-    t_dead = 0
-    log_alarm = np.zeros(len(df))
-    if alm_set.alm_type == 'high':
-        for i in np.arange(len(df)):
-            if df.iloc[i] > alm_set.limit:
-                t_dead = 0
-                t_delay = t_delay + 3/len(df)
-                if t_delay >= alm_set.on_delay:
+    count_on = 0
+    count_off = 0
+    log_alarm = np.zeros(len(series))
+    if alm_set.alm_type == 'HIGH':
+        for i in np.arange(len(series)):
+            if series.iloc[i] > alm_set.limit:
+                count_off = 0
+                count_on = count_on + 1
+                if count_on >= alm_set.on_delay:
                     log_alarm[i] = 1
                 else:
                     log_alarm[i] = 0
             else:
-                if log_alarm[i-1] == 1:
-                    t_dead = t_dead + 3/len(df)
-                    if t_dead >= alm_set.off_delay:
-                        log_alarm[i] = 0
-                        t_delay = 0
-                        t_dead = 0
-                    else:
-                        log_alarm[i] = 1
-                else:
-                    t_delay = 0
-                    t_dead = 0
+                count_on = 0
+                count_off = count_off + 1
+                if count_off >= alm_set.off_delay:
                     log_alarm[i] = 0
+                else:
+                    log_alarm[i] = 1
     else:
-        for i in np.arange(len(df)):
-            if df.iloc[i] < alm_set.limit:
-                t_dead = 0
-                t_delay = t_delay + 3/len(df)
-                if t_delay >= alm_set.on_delay:
+        for i in np.arange(len(series)):
+            if series.iloc[i] < alm_set.limit:
+                count_off = 0
+                count_on = count_on + 1
+                if count_on >= alm_set.on_delay:
                     log_alarm[i] = 1
                 else:
                     log_alarm[i] = 0
             else:
-                if log_alarm[i-1] == 1:
-                    t_dead = t_dead + 3/len(df)
-                    if t_dead >= alm_set.off_delay:
-                        log_alarm[i] = 0
-                        t_delay = 0
-                        t_dead = 0
-                    else:
-                        log_alarm[i] = 1
-                else:
-                    t_delay = 0
-                    t_dead = 0
+                count_on = 0
+                count_off = count_off + 1
+                if count_off >= alm_set.off_delay:
                     log_alarm[i] = 0
+                else:
+                    log_alarm[i] = 1
 
-    return pd.Series(log_alarm, index=df.index)
+    return pd.Series(log_alarm, index=series.index)
 
 
 def alarm_seq(df, alm_settings):
