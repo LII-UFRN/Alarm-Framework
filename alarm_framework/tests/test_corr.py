@@ -8,7 +8,7 @@ class TestCorr(unittest.TestCase):
     def setUp(self):
         pass
 
-    def atest_generate_corr_two_proc_var_two_alarm_var(self):
+    def test_generate_corr_two_proc_var_two_alarm_var(self):
         proc_vars = ['XMEAS01', 'XMEAS02']
         x1 = np.concatenate([np.random.normal(0, 1, size=100), np.random.normal(3, 1, size=100)])
         x2 = np.roll(x1, 10)
@@ -21,12 +21,16 @@ class TestCorr(unittest.TestCase):
         self.assertEqual(2, len(t))
         pass
 
-    def test_divide_zero(self):
-        proc_hist_dist_df = pd.read_csv("/home/ryuga/Documentos/Artigo CBA Sintonia de Alarmes/CBA-Threshold/cba_data/dados para avaliação/proc_history_dist.csv", index_col='tout')
+    def atest_divide_zero(self):
+        proc_hist_dist_df = pd.read_csv("/home/ryuga/Documentos/Artigo CBA Sintonia de "
+                                        "Alarmes/CBA-Threshold/cba_data/dados para avaliação/proc_history_dist.csv",
+                                        index_col='tout')
         proc_hist_dist_df.index = pd.to_datetime(proc_hist_dist_df.index, unit='s')
         proc_hist_dist_df.columns = map(str.upper, proc_hist_dist_df.columns)
 
-        proc_hist_norm_df = pd.read_csv("/home/ryuga/Documentos/Artigo CBA Sintonia de Alarmes/CBA-Threshold/cba_data/dados para avaliação/proc_history_norm.csv", index_col='tout')
+        proc_hist_norm_df = pd.read_csv("/home/ryuga/Documentos/Artigo CBA Sintonia de "
+                                        "Alarmes/CBA-Threshold/cba_data/dados para avaliação/proc_history_norm.csv",
+                                        index_col='tout')
         proc_hist_norm_df.index = pd.to_datetime(proc_hist_norm_df.index, unit='s')
         proc_hist_norm_df.columns = map(str.upper, proc_hist_norm_df.columns)
 
