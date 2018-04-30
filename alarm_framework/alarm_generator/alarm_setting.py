@@ -9,8 +9,8 @@ class AlarmSetting:
         self.limit = limit
         self.alm_type = alm_type
         self.proc_var = proc_var
-        self.on_delay = on_delay
-        self.off_delay = off_delay
+        self.on_delay = 0 if on_delay is None else on_delay
+        self.off_delay = 0 if off_delay is None else off_delay
 
     def as_dict(self):
         return {
